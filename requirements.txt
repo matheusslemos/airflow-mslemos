@@ -1,0 +1,9 @@
+apache-airflow[pandas,google,sftp,microsoft.mssql,papermill,hooklib] == 2.5.0
+jupyter
+google-cloud
+psycopg2-binary
+jupyter-resource-usage
+jupyterlab-topbar
+jupyterlab-topbar-text
+jupyterlab-system-monitor
+jupyterlab_github

@@ -1,0 +1,89 @@
+---
+version: "3.4"
+
+x-common: &common
+  build: ./
+  user: "${AIRFLOW_UID}:0"
+  env_file:
+    - .env
+  volumes:
+#    - ./dags:/opt/airflow/dags
+    - ./notebooks/dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./scripts:/opt/airflow/scripts
+    - ./extras:/opt/airflow/extras
+    - ./plugins:/opt/airflow/plugins
+    - ./notebooks:/home/jovyan/work
+    - ./var/run/docker.sock:/var/run/docker.sock
+
+x-depends-on: &depends-on
+  depends_on:
+    postgres:
+      condition: service_healthy
+    airflow-init:
+      condition: service_completed_successfully
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+    env_file:
+      - .env
+    
+  jupyter:
+    #image: jupyter/datascience-notebook
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    build:
+      context: ./
+      dockerfile: Dockerfilejupyter
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - ./plugins:/opt/airflow/plugins
+      - ./scripts:/opt/airflow/scripts
+    environment:
+      - PYTHONPATH=/opt/airflow/
+    command: jupyter lab --port 8888 --allow-root
+    env_file:
+      - .env
+
+  scheduler:
+    <<: *common
+    <<: *depends-on
+    container_name: airflow-scheduler
+    command: scheduler
+    restart: on-failure
+    ports:
+      - "8793:8793"
+
+  webserver:
+    <<: *common
+    <<: *depends-on
+    container_name: airflow-webserver
+    restart: always
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+
+  airflow-init:
+    <<: *common
+    container_name: airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        mkdir -p /sources/logs /sources/notebooks/dags /sources/plugins /sources/notebooks /sources/scripts
+        chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins,notebooks,scripts}
+        exec /entrypoint airflow version
