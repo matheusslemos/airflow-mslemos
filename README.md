@@ -7,3 +7,5 @@
 ### É preciso renomear a pasta env para executr
 
 ### E colocar as permissões necessárias nas pastas via linux
+
+### Precisa instalar o https://learn.microsoft.com/pt-br/windows/wsl/install
